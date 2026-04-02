@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>POS Glass Dashboard</title>
+<title>POS Clean Dashboard</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -10,18 +10,17 @@
 body {
     margin:0;
     font-family: 'Segoe UI', sans-serif;
-    background: linear-gradient(135deg,#f5f7fa,#e4ecf7);
+    background: linear-gradient(135deg,#f9fbfd,#eef3f9);
     display:flex;
 }
 
 /* Sidebar */
 .sidebar {
     width:220px;
-    background: rgba(255,255,255,0.6);
-    backdrop-filter: blur(20px);
+    background:white;
     height:100vh;
     padding:20px;
-    box-shadow: 5px 0 20px rgba(0,0,0,0.05);
+    box-shadow: 2px 0 15px rgba(0,0,0,0.05);
 }
 
 .sidebar h2 {
@@ -31,15 +30,15 @@ body {
 
 .menu div {
     padding:12px;
-    margin:5px 0;
+    margin:8px 0;
     cursor:pointer;
-    border-radius:12px;
-    color:#333;
+    border-radius:10px;
+    transition:0.3s;
 }
 
 .menu div:hover,
 .activeMenu {
-    background: rgba(255,255,255,0.9);
+    background:#eef3ff;
 }
 
 /* Main */
@@ -48,9 +47,12 @@ body {
     padding:30px;
 }
 
-/* Page */
-.page { display:none; }
-.activePage { display:block; }
+/* Floating Animation */
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+    100% { transform: translateY(0px); }
+}
 
 /* Search */
 #searchBox {
@@ -58,51 +60,53 @@ body {
     padding:14px;
     border-radius:25px;
     border:none;
-    background: rgba(255,255,255,0.7);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    background:white;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.05);
     outline:none;
 }
 
 /* Results */
 #results {
     margin-top:10px;
-    background: rgba(255,255,255,0.7);
+    background:white;
     border-radius:15px;
     max-height:200px;
     overflow-y:auto;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.05);
 }
 
 .item {
-    padding:10px;
+    padding:12px;
     cursor:pointer;
 }
 
 .item:hover {
-    background:#f0f4ff;
+    background:#f5f8ff;
 }
 
 /* Card */
 .card {
     margin-top:20px;
-    background: rgba(255,255,255,0.6);
-    backdrop-filter: blur(20px);
+    background:white;
     padding:20px;
     border-radius:20px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.05);
+    animation: float 4s ease-in-out infinite;
 }
 
 /* KPI */
 .kpi {
     display:flex;
-    gap:10px;
+    gap:15px;
 }
 
 .box {
     flex:1;
     padding:15px;
     border-radius:15px;
-    background: rgba(255,255,255,0.7);
+    background:#f7f9fc;
     text-align:center;
+    animation: float 5s ease-in-out infinite;
 }
 
 /* Table */
@@ -113,7 +117,7 @@ table {
 }
 
 td,th {
-    padding:8px;
+    padding:10px;
     text-align:center;
     border-bottom:1px solid #eee;
 }
@@ -121,7 +125,15 @@ td,th {
 /* Chart */
 canvas {
     margin-top:20px;
+    background:white;
+    border-radius:15px;
+    padding:10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
 }
+
+/* Page */
+.page { display:none; }
+.activePage { display:block; }
 </style>
 </head>
 
@@ -140,7 +152,7 @@ canvas {
 <!-- Main -->
 <div class="main">
 
-<!-- SEARCH PAGE -->
+<!-- SEARCH -->
 <div id="searchPage" class="page activePage">
 
 <h2>Search Merchant</h2>
@@ -154,10 +166,10 @@ canvas {
 
 </div>
 
-<!-- DASHBOARD PAGE -->
+<!-- DASHBOARD -->
 <div id="dashboardPage" class="page">
 
-<h2>📊 Overall Dashboard</h2>
+<h2>Overall Dashboard</h2>
 
 <div class="kpi">
     <div class="box">
@@ -182,7 +194,6 @@ const API_URL = "https://script.google.com/macros/s/AKfycbxbSkVguaanvqWG8KZlgQ67
 let sheetData = [];
 let chart, overallChart;
 
-// Load data
 fetch(API_URL)
 .then(res=>res.json())
 .then(data=>{
@@ -206,7 +217,7 @@ function getMonths(item){
         .map(k=>k.replace(" Count",""));
 }
 
-// SEARCH
+// Search
 searchBox.addEventListener("input", function(){
 
     let keyword = this.value.toLowerCase();
@@ -230,7 +241,7 @@ searchBox.addEventListener("input", function(){
     });
 });
 
-// DETAIL
+// Detail
 function showDetail(item){
 
     let months = getMonths(item);
@@ -284,7 +295,7 @@ function showDetail(item){
     });
 }
 
-// DASHBOARD
+// Dashboard
 function loadDashboard(){
 
     let totalCount=0, totalVol=0;
