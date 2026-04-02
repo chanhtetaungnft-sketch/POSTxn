@@ -13,13 +13,8 @@ body {
     padding: 30px;
 }
 
-/* Title */
-h1 {
-    text-align: center;
-    font-size: 34px;
-}
+h1 { text-align: center; }
 
-/* Search */
 #searchBox {
     display: block;
     margin: 20px auto;
@@ -27,11 +22,8 @@ h1 {
     width: 420px;
     border-radius: 20px;
     border: none;
-    font-size: 16px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
 }
 
-/* Suggestion */
 #suggestionBox {
     width: 420px;
     margin: auto;
@@ -41,15 +33,9 @@ h1 {
     overflow-y: auto;
 }
 
-.suggestion {
-    padding: 10px;
-    cursor: pointer;
-}
-.suggestion:hover {
-    background: #eee;
-}
+.suggestion { padding: 10px; cursor: pointer; }
+.suggestion:hover { background: #eee; }
 
-/* Card */
 .card {
     background: rgba(255,255,255,0.6);
     backdrop-filter: blur(15px);
@@ -58,7 +44,6 @@ h1 {
     margin-top: 20px;
 }
 
-/* KPI */
 .kpi-container {
     display: flex;
     gap: 10px;
@@ -73,13 +58,30 @@ h1 {
     background: rgba(255,255,255,0.5);
 }
 
-/* Table */
-table {
-    width: 100%;
+/* Badge */
+.badge {
+    padding: 5px 10px;
+    border-radius: 10px;
+    color: white;
+    font-size: 12px;
 }
-td, th {
-    padding: 8px;
+.active { background: green; }
+.inactive { background: red; }
+
+/* Progress bar */
+.progress {
+    background: #eee;
+    border-radius: 10px;
+    height: 10px;
 }
+.progress-bar {
+    height: 10px;
+    border-radius: 10px;
+    background: #4caf50;
+}
+
+table { width: 100%; margin-top:10px; }
+td, th { padding: 8px; text-align:center; }
 </style>
 </head>
 
@@ -87,7 +89,7 @@ td, th {
 
 <h1>POS Transaction Monitoring</h1>
 
-<input type="text" id="searchBox" placeholder="🔍 Search HQ ID / Terminal ID / Store Name">
+<input type="text" id="searchBox" placeholder="🔍 Search HQ ID / Store Name">
 <div id="suggestionBox"></div>
 
 <div id="result"></div>
@@ -97,16 +99,20 @@ td, th {
 let sheetData = [];
 let chart;
 
-const API_URL = "https://script.google.com/macros/library/d/1q_BR63blQaxgFoElEXYrRzy0XlGykbZBDwoAtFFXPTFXut6VlcqfcgRM/9";
+const API_URL = "https://script.google.com/macros/s/AKfycbwq_1e2XQMzJxB7aldgptnX1_gRfVD2RYFhCxVOmInuF4uFdEwWf5h6lay7CgM6dTzu/exec";
 
-// load data
 fetch(API_URL)
 .then(res => res.json())
 .then(data => sheetData = data);
 
 // format
-function formatNumber(num){
-    return Number(num || 0).toLocaleString();
+const formatNumber = n => Number(n||0).toLocaleString();
+
+// dynamic month detect
+function getMonths(item){
+    return Object.keys(item)
+        .filter(k => k.includes("Count"))
+        .map(k => k.replace(" Count",""));
 }
 
 // search
@@ -114,21 +120,19 @@ const searchBox = document.getElementById("searchBox");
 const suggestionBox = document.getElementById("suggestionBox");
 
 searchBox.addEventListener("keyup", function(){
-    const keyword = this.value.toLowerCase();
+
+    let keyword = this.value.toLowerCase();
     suggestionBox.innerHTML = "";
 
-    if(keyword.length < 1) return;
-
     let filtered = sheetData.filter(item =>
-        (item["HQ ID"]||"").toLowerCase().includes(keyword) ||
-        (item["Terminal ID"]||"").toLowerCase().includes(keyword) ||
-        (item["Store Name"]||"").toLowerCase().includes(keyword)
+        (item["HQ ID"]+"").toLowerCase().includes(keyword) ||
+        (item["Merchant Name"]+"").toLowerCase().includes(keyword)
     );
 
     filtered.slice(0,10).forEach(item=>{
         let div = document.createElement("div");
         div.className = "suggestion";
-        div.innerText = `${item["Store Name"]} (${item["HQ ID"]})`;
+        div.innerText = item["Merchant Name"];
 
         div.onclick = ()=>{
             showResult(item);
@@ -142,23 +146,79 @@ searchBox.addEventListener("keyup", function(){
 // show result
 function showResult(item){
 
-let html = `
+let months = getMonths(item);
+
+let totalCount = 0;
+let totalVol = 0;
+
+let tableRows = "";
+let volumes = [];
+
+months.forEach(m=>{
+    let c = Number(item[m+" Count"]||0);
+    let v = Number(item[m+" Volume"]||0);
+
+    totalCount += c;
+    totalVol += v;
+    volumes.push(v);
+
+    tableRows += `
+    <tr>
+        <td>${m}</td>
+        <td>${formatNumber(c)}</td>
+        <td>${formatNumber(v)}</td>
+    </tr>`;
+});
+
+// portal badge
+let status = (item["Portal Status"] || "").toLowerCase();
+let badgeClass = status === "active" ? "active" : "inactive";
+
+// MDR %
+let raw = item["MDR Offus"] || 0;
+
+let mdr = 0;
+
+if(typeof raw === "string" && raw.includes("%")){
+    // already percent format (e.g. "0.30%")
+    mdr = parseFloat(raw.replace("%","")).toFixed(2);
+} else {
+    // decimal format (e.g. 0.003)
+    let num = parseFloat(raw);
+    mdr = !isNaN(num) ? (num * 100).toFixed(2) : "0.00";
+}
+
+document.getElementById("result").innerHTML = `
 <div class="card">
-<h2>${item["Store Name"]}</h2>
+<h2>${item["Merchant Name"]}</h2>
 <p>HQ ID: ${item["HQ ID"]}</p>
-<p>Terminal ID: ${item["Terminal ID"]}</p>
+
+<p>
+Portal Status:
+<span class="badge ${badgeClass}">${item["Portal Status"]||"-"}</span>
+</p>
+
+<p>MDR Offus: ${mdr}%</p>
+<div class="progress">
+<div class="progress-bar" style="width:${mdr}%"></div>
+</div>
+
+<div class="kpi-container">
+<div class="kpi">
+<h3>${formatNumber(totalCount)}</h3>
+<p>Total Count</p>
+</div>
+<div class="kpi">
+<h3>${formatNumber(totalVol)}</h3>
+<p>Total Volume</p>
+</div>
+</div>
 
 <table>
 <tr><th>Month</th><th>Count</th><th>Volume</th></tr>
-
-<tr><td>Jan</td><td>${formatNumber(item["Jan Count"])}</td><td>${formatNumber(item["Jan Volume"])}</td></tr>
-<tr><td>Feb</td><td>${formatNumber(item["Feb Count"])}</td><td>${formatNumber(item["Feb Volume"])}</td></tr>
-<tr><td>March</td><td>${formatNumber(item["March Count"])}</td><td>${formatNumber(item["March Volume"])}</td></tr>
-
+${tableRows}
 </table>
 </div>`;
-
-document.getElementById("result").innerHTML = html;
 
 // chart
 let ctx = document.getElementById("chart").getContext("2d");
@@ -168,14 +228,10 @@ if(chart) chart.destroy();
 chart = new Chart(ctx,{
     type:'bar',
     data:{
-        labels:["Jan","Feb","March"],
+        labels: months,
         datasets:[{
             label:"Volume",
-            data:[
-                item["Jan Volume"]||0,
-                item["Feb Volume"]||0,
-                item["March Volume"]||0
-            ]
+            data: volumes
         }]
     }
 });
