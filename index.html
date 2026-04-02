@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>POS Enterprise Dashboard</title>
+<title>POS Glass Dashboard</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -10,37 +10,36 @@
 body {
     margin:0;
     font-family: 'Segoe UI', sans-serif;
-    background:#1e2a38;
-    color:white;
+    background: linear-gradient(135deg,#f5f7fa,#e4ecf7);
     display:flex;
 }
 
 /* Sidebar */
 .sidebar {
     width:220px;
-    background:#16202c;
+    background: rgba(255,255,255,0.6);
+    backdrop-filter: blur(20px);
     height:100vh;
     padding:20px;
+    box-shadow: 5px 0 20px rgba(0,0,0,0.05);
 }
 
 .sidebar h2 {
     text-align:center;
-}
-
-.menu {
-    margin-top:30px;
+    color:#333;
 }
 
 .menu div {
     padding:12px;
     margin:5px 0;
     cursor:pointer;
-    border-radius:10px;
+    border-radius:12px;
+    color:#333;
 }
 
 .menu div:hover,
 .activeMenu {
-    background:#2c3e50;
+    background: rgba(255,255,255,0.9);
 }
 
 /* Main */
@@ -50,27 +49,25 @@ body {
 }
 
 /* Page */
-.page {
-    display:none;
-}
-
-.activePage {
-    display:block;
-}
+.page { display:none; }
+.activePage { display:block; }
 
 /* Search */
 #searchBox {
     width:100%;
-    padding:12px;
-    border-radius:20px;
+    padding:14px;
+    border-radius:25px;
     border:none;
+    background: rgba(255,255,255,0.7);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    outline:none;
 }
 
 /* Results */
 #results {
-    background:#2c3e50;
     margin-top:10px;
-    border-radius:10px;
+    background: rgba(255,255,255,0.7);
+    border-radius:15px;
     max-height:200px;
     overflow-y:auto;
 }
@@ -81,15 +78,17 @@ body {
 }
 
 .item:hover {
-    background:#34495e;
+    background:#f0f4ff;
 }
 
 /* Card */
 .card {
     margin-top:20px;
-    background:#2c3e50;
+    background: rgba(255,255,255,0.6);
+    backdrop-filter: blur(20px);
     padding:20px;
-    border-radius:15px;
+    border-radius:20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
 }
 
 /* KPI */
@@ -100,9 +99,9 @@ body {
 
 .box {
     flex:1;
-    background:#34495e;
     padding:15px;
-    border-radius:10px;
+    border-radius:15px;
+    background: rgba(255,255,255,0.7);
     text-align:center;
 }
 
@@ -116,7 +115,7 @@ table {
 td,th {
     padding:8px;
     text-align:center;
-    border-bottom:1px solid #444;
+    border-bottom:1px solid #eee;
 }
 
 /* Chart */
@@ -273,10 +272,14 @@ function showDetail(item){
     if(chart) chart.destroy();
 
     chart=new Chart(ctx,{
-        type:'bar',
+        type:'line',
         data:{
             labels:months,
-            datasets:[{label:"Volume", data:volumes}]
+            datasets:[{
+                label:"Volume",
+                data:volumes,
+                borderWidth:2
+            }]
         }
     });
 }
@@ -308,7 +311,7 @@ function loadDashboard(){
     let ctx=document.getElementById("overallChart").getContext("2d");
 
     overallChart=new Chart(ctx,{
-        type:'line',
+        type:'bar',
         data:{
             labels:Object.keys(monthMap),
             datasets:[{
