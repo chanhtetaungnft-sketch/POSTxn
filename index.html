@@ -2,20 +2,23 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>POS Transaction Monitoring</title>
+<title>POS Pro Dashboard</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body {
     font-family: 'Segoe UI', sans-serif;
-    background: linear-gradient(135deg,#e3ecf7,#f5f7fa);
+    background: linear-gradient(135deg,#1e2a38,#3a4b63);
+    color: white;
     display: flex;
     justify-content: center;
-    padding-top: 60px;
+    padding-top: 40px;
 }
 
 /* Container */
 .container {
-    width: 650px;
+    width: 750px;
 }
 
 /* Title */
@@ -32,49 +35,83 @@ h1 {
     border: none;
     font-size: 16px;
     outline: none;
-    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
 }
 
 /* Results */
 #results {
     margin-top: 10px;
-    background: rgba(255,255,255,0.7);
-    backdrop-filter: blur(10px);
+    background: rgba(255,255,255,0.1);
     border-radius: 15px;
-    max-height: 300px;
+    max-height: 250px;
     overflow-y: auto;
 }
 
-/* Item */
 .item {
-    padding: 12px 15px;
+    padding: 12px;
     cursor: pointer;
-    border-bottom: 1px solid #eee;
 }
 
 .item:hover,
 .active {
-    background: #eef3ff;
+    background: rgba(255,255,255,0.2);
 }
 
-/* Highlight */
-mark {
-    background: yellow;
-}
-
-/* Detail Panel */
+/* Detail Card */
 #detail {
     margin-top: 20px;
     padding: 20px;
     border-radius: 20px;
-    background: rgba(255,255,255,0.6);
-    backdrop-filter: blur(15px);
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(20px);
     display: none;
 }
 
-.label {
-    color: gray;
-    font-size: 13px;
+/* KPI */
+.kpi {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.box {
+    flex: 1;
+    text-align: center;
+    padding: 15px;
+    border-radius: 15px;
+    background: rgba(255,255,255,0.1);
+}
+
+/* Badge */
+.badge {
+    padding: 5px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+}
+
+.activeBadge {
+    background: #00c853;
+}
+
+.inactiveBadge {
+    background: #ff5252;
+}
+
+/* Table */
+table {
+    width: 100%;
+    margin-top: 15px;
+    border-collapse: collapse;
+}
+
+td, th {
+    padding: 8px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Chart */
+canvas {
+    margin-top: 20px;
 }
 </style>
 </head>
@@ -83,61 +120,45 @@ mark {
 
 <div class="container">
 
-<h1>🔍 POS Transaction Monitoring</h1>
+<h1>🚀 POS Pro Dashboard</h1>
 
-<input type="text" id="searchBox" placeholder="Search HQ ID or Store Name...">
+<input type="text" id="searchBox" placeholder="Search HQ ID or Store Name">
 <div id="results"></div>
 
 <div id="detail"></div>
+
+<canvas id="chart" height="120"></canvas>
 
 </div>
 
 <script>
 let sheetData = [];
-let currentIndex = -1;
+let chart;
 
 const API_URL = "https://script.google.com/macros/s/AKfycbxbSkVguaanvqWG8KZlgQ67slnSNGvR79Fls-HsoLecmdEGOVICx7zGljL2Z0uXLweO/exec";
 
-// Fetch data
+// Fetch
 fetch(API_URL)
 .then(res => res.json())
 .then(data => sheetData = data);
 
-// Elements
+// Detect months
+function getMonths(item){
+    return Object.keys(item)
+        .filter(k => k.includes("Count"))
+        .map(k => k.replace(" Count",""));
+}
+
+// Search
 const searchBox = document.getElementById("searchBox");
 const results = document.getElementById("results");
 const detail = document.getElementById("detail");
 
-// Highlight function
-function highlight(text, keyword){
-    if(!keyword) return text;
-    let regex = new RegExp(`(${keyword})`, "gi");
-    return text.replace(regex, "<mark>$1</mark>");
-}
-
-// Show detail
-function showDetail(item){
-    detail.style.display = "block";
-
-    detail.innerHTML = `
-        <h2>${item["Store Name"]}</h2>
-        <p><span class="label">HQ ID:</span> ${item["HQ ID"]}</p>
-        <p><span class="label">Setup Date:</span> ${item["Setup By Date"] || "-"}</p>
-        <hr>
-        <p><b>January:</b> ${item["Jan Count"] || 0} | ${Number(item["Jan Volume"]||0).toLocaleString()}</p>
-        <p><b>February:</b> ${item["Feb Count"] || 0} | ${Number(item["Feb Volume"]||0).toLocaleString()}</p>
-        <p><b>March:</b> ${item["March Count"] || 0} | ${Number(item["March Volume"]||0).toLocaleString()}</p>
-        <p><b>April:</b> ${item["April Count"] || 0} | ${Number(item["April Volume"]||0).toLocaleString()}</p>
-    `;
-}
-
-// Search
 searchBox.addEventListener("input", function(){
 
-    let keyword = this.value.toLowerCase().trim();
+    let keyword = this.value.toLowerCase();
     results.innerHTML = "";
     detail.style.display = "none";
-    currentIndex = -1;
 
     if(!keyword) return;
 
@@ -146,47 +167,102 @@ searchBox.addEventListener("input", function(){
         (item["Store Name"]+"").toLowerCase().includes(keyword)
     );
 
-    filtered.slice(0,20).forEach((item, index)=>{
+    filtered.slice(0,10).forEach(item => {
+
         let div = document.createElement("div");
         div.className = "item";
+        div.innerHTML = `<b>${item["Store Name"]}</b> (HQ: ${item["HQ ID"]})`;
 
-        div.innerHTML = `
-            ${highlight(item["Store Name"], keyword)}<br>
-            <small>HQ ID: ${highlight(item["HQ ID"]+"", keyword)}</small>
-        `;
-
-        div.onclick = ()=>{
-            showDetail(item);
-            results.innerHTML = "";
-        };
+        div.onclick = () => showDetail(item);
 
         results.appendChild(div);
     });
-
 });
 
-// Keyboard control
-searchBox.addEventListener("keydown", function(e){
-    let items = document.querySelectorAll(".item");
+// Show Detail
+function showDetail(item){
 
-    if(e.key === "ArrowDown"){
-        currentIndex++;
-    }
-    else if(e.key === "ArrowUp"){
-        currentIndex--;
-    }
-    else if(e.key === "Enter"){
-        if(items[currentIndex]){
-            items[currentIndex].click();
+    let months = getMonths(item);
+
+    let totalCount = 0;
+    let totalVol = 0;
+
+    let rows = "";
+    let volumes = [];
+    let counts = [];
+
+    months.forEach(m => {
+
+        let c = Number(item[m+" Count"] || 0);
+        let v = Number(item[m+" Volume"] || 0);
+
+        totalCount += c;
+        totalVol += v;
+
+        volumes.push(v);
+        counts.push(c);
+
+        rows += `
+        <tr>
+            <td>${m}</td>
+            <td>${c}</td>
+            <td>${v.toLocaleString()}</td>
+        </tr>`;
+    });
+
+    // Status badge
+    let status = (item["Portal Status"] || "").toLowerCase();
+    let badge = status === "active" ? 
+        `<span class="badge activeBadge">Active</span>` :
+        `<span class="badge inactiveBadge">Inactive</span>`;
+
+    detail.style.display = "block";
+
+    detail.innerHTML = `
+    <h2>${item["Store Name"]}</h2>
+    <p>HQ ID: ${item["HQ ID"]} ${badge}</p>
+
+    <div class="kpi">
+        <div class="box">
+            <h3>${totalCount}</h3>
+            <p>Total Count</p>
+        </div>
+        <div class="box">
+            <h3>${totalVol.toLocaleString()}</h3>
+            <p>Total Volume</p>
+        </div>
+    </div>
+
+    <table>
+        <tr><th>Month</th><th>Count</th><th>Volume</th></tr>
+        ${rows}
+    </table>
+    `;
+
+    // Chart
+    let ctx = document.getElementById("chart").getContext("2d");
+
+    if(chart) chart.destroy();
+
+    chart = new Chart(ctx,{
+        type:'line',
+        data:{
+            labels: months,
+            datasets:[
+                {
+                    label:"Volume",
+                    data: volumes,
+                    borderWidth:2
+                },
+                {
+                    label:"Count",
+                    data: counts,
+                    borderWidth:2
+                }
+            ]
         }
-    }
-
-    items.forEach(i => i.classList.remove("active"));
-
-    if(items[currentIndex]){
-        items[currentIndex].classList.add("active");
-    }
-});
+    });
+}
 </script>
 
 </body>
