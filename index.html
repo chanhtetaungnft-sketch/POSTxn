@@ -2,163 +2,216 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>POS Pro Dashboard</title>
+<title>POS Enterprise Dashboard</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body {
+    margin:0;
     font-family: 'Segoe UI', sans-serif;
-    background: linear-gradient(135deg,#1e2a38,#3a4b63);
-    color: white;
-    display: flex;
-    justify-content: center;
-    padding-top: 40px;
+    background:#1e2a38;
+    color:white;
+    display:flex;
 }
 
-/* Container */
-.container {
-    width: 750px;
+/* Sidebar */
+.sidebar {
+    width:220px;
+    background:#16202c;
+    height:100vh;
+    padding:20px;
 }
 
-/* Title */
-h1 {
-    text-align: center;
-    margin-bottom: 20px;
+.sidebar h2 {
+    text-align:center;
+}
+
+.menu {
+    margin-top:30px;
+}
+
+.menu div {
+    padding:12px;
+    margin:5px 0;
+    cursor:pointer;
+    border-radius:10px;
+}
+
+.menu div:hover,
+.activeMenu {
+    background:#2c3e50;
+}
+
+/* Main */
+.main {
+    flex:1;
+    padding:30px;
+}
+
+/* Page */
+.page {
+    display:none;
+}
+
+.activePage {
+    display:block;
 }
 
 /* Search */
 #searchBox {
-    width: 100%;
-    padding: 15px;
-    border-radius: 30px;
-    border: none;
-    font-size: 16px;
-    outline: none;
+    width:100%;
+    padding:12px;
+    border-radius:20px;
+    border:none;
 }
 
 /* Results */
 #results {
-    margin-top: 10px;
-    background: rgba(255,255,255,0.1);
-    border-radius: 15px;
-    max-height: 250px;
-    overflow-y: auto;
+    background:#2c3e50;
+    margin-top:10px;
+    border-radius:10px;
+    max-height:200px;
+    overflow-y:auto;
 }
 
 .item {
-    padding: 12px;
-    cursor: pointer;
+    padding:10px;
+    cursor:pointer;
 }
 
-.item:hover,
-.active {
-    background: rgba(255,255,255,0.2);
+.item:hover {
+    background:#34495e;
 }
 
-/* Detail Card */
-#detail {
-    margin-top: 20px;
-    padding: 20px;
-    border-radius: 20px;
-    background: rgba(255,255,255,0.1);
-    backdrop-filter: blur(20px);
-    display: none;
+/* Card */
+.card {
+    margin-top:20px;
+    background:#2c3e50;
+    padding:20px;
+    border-radius:15px;
 }
 
 /* KPI */
 .kpi {
-    display: flex;
-    gap: 10px;
-    margin-top: 15px;
+    display:flex;
+    gap:10px;
 }
 
 .box {
-    flex: 1;
-    text-align: center;
-    padding: 15px;
-    border-radius: 15px;
-    background: rgba(255,255,255,0.1);
-}
-
-/* Badge */
-.badge {
-    padding: 5px 10px;
-    border-radius: 10px;
-    font-size: 12px;
-}
-
-.activeBadge {
-    background: #00c853;
-}
-
-.inactiveBadge {
-    background: #ff5252;
+    flex:1;
+    background:#34495e;
+    padding:15px;
+    border-radius:10px;
+    text-align:center;
 }
 
 /* Table */
 table {
-    width: 100%;
-    margin-top: 15px;
+    width:100%;
+    margin-top:15px;
     border-collapse: collapse;
 }
 
-td, th {
-    padding: 8px;
-    text-align: center;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
+td,th {
+    padding:8px;
+    text-align:center;
+    border-bottom:1px solid #444;
 }
 
 /* Chart */
 canvas {
-    margin-top: 20px;
+    margin-top:20px;
 }
 </style>
 </head>
 
 <body>
 
-<div class="container">
+<!-- Sidebar -->
+<div class="sidebar">
+    <h2>🏦 POS</h2>
 
-<h1>🚀 POS Pro Dashboard</h1>
+    <div class="menu">
+        <div class="activeMenu" onclick="showPage('searchPage', this)">🔍 Search</div>
+        <div onclick="showPage('dashboardPage', this)">📊 Dashboard</div>
+    </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+
+<!-- SEARCH PAGE -->
+<div id="searchPage" class="page activePage">
+
+<h2>Search Merchant</h2>
 
 <input type="text" id="searchBox" placeholder="Search HQ ID or Store Name">
 <div id="results"></div>
 
 <div id="detail"></div>
 
-<canvas id="chart" height="120"></canvas>
+<canvas id="chart"></canvas>
+
+</div>
+
+<!-- DASHBOARD PAGE -->
+<div id="dashboardPage" class="page">
+
+<h2>📊 Overall Dashboard</h2>
+
+<div class="kpi">
+    <div class="box">
+        <h3 id="totalCount">0</h3>
+        <p>Total Count</p>
+    </div>
+    <div class="box">
+        <h3 id="totalVolume">0</h3>
+        <p>Total Volume</p>
+    </div>
+</div>
+
+<canvas id="overallChart"></canvas>
+
+</div>
 
 </div>
 
 <script>
-let sheetData = [];
-let chart;
-
 const API_URL = "https://script.google.com/macros/s/AKfycbxbSkVguaanvqWG8KZlgQ67slnSNGvR79Fls-HsoLecmdEGOVICx7zGljL2Z0uXLweO/exec";
 
-// Fetch
+let sheetData = [];
+let chart, overallChart;
+
+// Load data
 fetch(API_URL)
-.then(res => res.json())
-.then(data => sheetData = data);
+.then(res=>res.json())
+.then(data=>{
+    sheetData = data;
+    loadDashboard();
+});
+
+// Page switch
+function showPage(pageId, el){
+    document.querySelectorAll(".page").forEach(p=>p.classList.remove("activePage"));
+    document.getElementById(pageId).classList.add("activePage");
+
+    document.querySelectorAll(".menu div").forEach(m=>m.classList.remove("activeMenu"));
+    el.classList.add("activeMenu");
+}
 
 // Detect months
 function getMonths(item){
     return Object.keys(item)
-        .filter(k => k.includes("Count"))
-        .map(k => k.replace(" Count",""));
+        .filter(k=>k.includes("Count"))
+        .map(k=>k.replace(" Count",""));
 }
 
-// Search
-const searchBox = document.getElementById("searchBox");
-const results = document.getElementById("results");
-const detail = document.getElementById("detail");
-
+// SEARCH
 searchBox.addEventListener("input", function(){
 
     let keyword = this.value.toLowerCase();
     results.innerHTML = "";
-    detail.style.display = "none";
 
     if(!keyword) return;
 
@@ -167,99 +220,101 @@ searchBox.addEventListener("input", function(){
         (item["Store Name"]+"").toLowerCase().includes(keyword)
     );
 
-    filtered.slice(0,10).forEach(item => {
-
+    filtered.slice(0,10).forEach(item=>{
         let div = document.createElement("div");
-        div.className = "item";
-        div.innerHTML = `<b>${item["Store Name"]}</b> (HQ: ${item["HQ ID"]})`;
+        div.className="item";
+        div.innerHTML=`${item["Store Name"]} (HQ:${item["HQ ID"]})`;
 
-        div.onclick = () => showDetail(item);
+        div.onclick=()=>showDetail(item);
 
         results.appendChild(div);
     });
 });
 
-// Show Detail
+// DETAIL
 function showDetail(item){
 
     let months = getMonths(item);
 
-    let totalCount = 0;
-    let totalVol = 0;
+    let totalCount=0, totalVol=0;
+    let volumes=[];
 
-    let rows = "";
-    let volumes = [];
-    let counts = [];
+    let rows="";
 
-    months.forEach(m => {
+    months.forEach(m=>{
+        let c=Number(item[m+" Count"]||0);
+        let v=Number(item[m+" Volume"]||0);
 
-        let c = Number(item[m+" Count"] || 0);
-        let v = Number(item[m+" Volume"] || 0);
-
-        totalCount += c;
-        totalVol += v;
-
+        totalCount+=c;
+        totalVol+=v;
         volumes.push(v);
-        counts.push(c);
 
-        rows += `
-        <tr>
-            <td>${m}</td>
-            <td>${c}</td>
-            <td>${v.toLocaleString()}</td>
-        </tr>`;
+        rows+=`<tr><td>${m}</td><td>${c}</td><td>${v.toLocaleString()}</td></tr>`;
     });
 
-    // Status badge
-    let status = (item["Portal Status"] || "").toLowerCase();
-    let badge = status === "active" ? 
-        `<span class="badge activeBadge">Active</span>` :
-        `<span class="badge inactiveBadge">Inactive</span>`;
+    detail.innerHTML=`
+    <div class="card">
+        <h3>${item["Store Name"]}</h3>
+        <p>HQ: ${item["HQ ID"]}</p>
 
-    detail.style.display = "block";
-
-    detail.innerHTML = `
-    <h2>${item["Store Name"]}</h2>
-    <p>HQ ID: ${item["HQ ID"]} ${badge}</p>
-
-    <div class="kpi">
-        <div class="box">
-            <h3>${totalCount}</h3>
-            <p>Total Count</p>
+        <div class="kpi">
+            <div class="box"><h3>${totalCount}</h3><p>Count</p></div>
+            <div class="box"><h3>${totalVol.toLocaleString()}</h3><p>Volume</p></div>
         </div>
-        <div class="box">
-            <h3>${totalVol.toLocaleString()}</h3>
-            <p>Total Volume</p>
-        </div>
-    </div>
 
-    <table>
+        <table>
         <tr><th>Month</th><th>Count</th><th>Volume</th></tr>
         ${rows}
-    </table>
+        </table>
+    </div>
     `;
 
-    // Chart
-    let ctx = document.getElementById("chart").getContext("2d");
-
+    let ctx=document.getElementById("chart").getContext("2d");
     if(chart) chart.destroy();
 
-    chart = new Chart(ctx,{
+    chart=new Chart(ctx,{
+        type:'bar',
+        data:{
+            labels:months,
+            datasets:[{label:"Volume", data:volumes}]
+        }
+    });
+}
+
+// DASHBOARD
+function loadDashboard(){
+
+    let totalCount=0, totalVol=0;
+    let monthMap={};
+
+    sheetData.forEach(item=>{
+        let months=getMonths(item);
+
+        months.forEach(m=>{
+            let c=Number(item[m+" Count"]||0);
+            let v=Number(item[m+" Volume"]||0);
+
+            totalCount+=c;
+            totalVol+=v;
+
+            if(!monthMap[m]) monthMap[m]=0;
+            monthMap[m]+=v;
+        });
+    });
+
+    document.getElementById("totalCount").innerText=totalCount;
+    document.getElementById("totalVolume").innerText=totalVol.toLocaleString();
+
+    let ctx=document.getElementById("overallChart").getContext("2d");
+
+    overallChart=new Chart(ctx,{
         type:'line',
         data:{
-            labels: months,
-            datasets:[
-                {
-                    label:"Volume",
-                    data: volumes,
-                    borderWidth:2
-                },
-                {
-                    label:"Count",
-                    data: counts,
-                    borderWidth:2
-                }
-            ]
+            labels:Object.keys(monthMap),
+            datasets:[{
+                label:"Total Volume",
+                data:Object.values(monthMap)
+            }]
         }
     });
 }
