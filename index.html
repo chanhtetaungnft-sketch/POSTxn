@@ -120,7 +120,7 @@ function showDetail(item){
     detail.style.display = "block";
 
     detail.innerHTML = `
-        <h2>${item["Merchant Name"]}</h2>
+        <h2>${item["Store Name"]}</h2>
         <p><span class="label">HQ ID:</span> ${item["HQ ID"]}</p>
         <p><span class="label">Setup Date:</span> ${item["Setup By Date"] || "-"}</p>
         <hr>
@@ -143,7 +143,7 @@ searchBox.addEventListener("input", function(){
 
     let filtered = sheetData.filter(item =>
         (item["HQ ID"]+"").toLowerCase().includes(keyword) ||
-        (item["Merchant Name"]+"").toLowerCase().includes(keyword)
+        (item["Store Name"]+"").toLowerCase().includes(keyword)
     );
 
     filtered.slice(0,20).forEach((item, index)=>{
@@ -151,7 +151,7 @@ searchBox.addEventListener("input", function(){
         div.className = "item";
 
         div.innerHTML = `
-            ${highlight(item["Merchant Name"], keyword)}<br>
+            ${highlight(item["Store Name"], keyword)}<br>
             <small>HQ ID: ${highlight(item["HQ ID"]+"", keyword)}</small>
         `;
 
