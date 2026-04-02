@@ -4,238 +4,189 @@
 <meta charset="UTF-8">
 <title>POS Transaction Monitoring</title>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <style>
 body {
     font-family: 'Segoe UI', sans-serif;
-    background: linear-gradient(135deg,#f5f7fa,#e4ecf7);
-    padding: 30px;
+    background: linear-gradient(135deg,#e3ecf7,#f5f7fa);
+    display: flex;
+    justify-content: center;
+    padding-top: 60px;
 }
 
-h1 { text-align: center; }
+/* Container */
+.container {
+    width: 650px;
+}
 
+/* Title */
+h1 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+/* Search */
 #searchBox {
-    display: block;
-    margin: 20px auto;
+    width: 100%;
     padding: 15px;
-    width: 420px;
-    border-radius: 20px;
+    border-radius: 30px;
     border: none;
+    font-size: 16px;
+    outline: none;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
 }
 
-#suggestionBox {
-    width: 420px;
-    margin: auto;
-    background: white;
-    border-radius: 10px;
-    max-height: 200px;
+/* Results */
+#results {
+    margin-top: 10px;
+    background: rgba(255,255,255,0.7);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    max-height: 300px;
     overflow-y: auto;
 }
 
-.suggestion { padding: 10px; cursor: pointer; }
-.suggestion:hover { background: #eee; }
+/* Item */
+.item {
+    padding: 12px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
 
-.card {
+.item:hover,
+.active {
+    background: #eef3ff;
+}
+
+/* Highlight */
+mark {
+    background: yellow;
+}
+
+/* Detail Panel */
+#detail {
+    margin-top: 20px;
+    padding: 20px;
+    border-radius: 20px;
     background: rgba(255,255,255,0.6);
     backdrop-filter: blur(15px);
-    border-radius: 20px;
-    padding: 20px;
-    margin-top: 20px;
+    display: none;
 }
 
-.kpi-container {
-    display: flex;
-    gap: 10px;
-    margin-top: 15px;
+.label {
+    color: gray;
+    font-size: 13px;
 }
-
-.kpi {
-    flex: 1;
-    text-align: center;
-    padding: 15px;
-    border-radius: 15px;
-    background: rgba(255,255,255,0.5);
-}
-
-/* Badge */
-.badge {
-    padding: 5px 10px;
-    border-radius: 10px;
-    color: white;
-    font-size: 12px;
-}
-.active { background: green; }
-.inactive { background: red; }
-
-/* Progress bar */
-.progress {
-    background: #eee;
-    border-radius: 10px;
-    height: 10px;
-}
-.progress-bar {
-    height: 10px;
-    border-radius: 10px;
-    background: #4caf50;
-}
-
-table { width: 100%; margin-top:10px; }
-td, th { padding: 8px; text-align:center; }
 </style>
 </head>
 
 <body>
 
-<h1>POS Transaction Monitoring</h1>
+<div class="container">
 
-<input type="text" id="searchBox" placeholder="🔍 Search HQ ID / Store Name">
-<div id="suggestionBox"></div>
+<h1>🔍 POS Transaction Monitoring</h1>
 
-<div id="result"></div>
-<canvas id="chart" height="100"></canvas>
+<input type="text" id="searchBox" placeholder="Search HQ ID or Store Name...">
+<div id="results"></div>
+
+<div id="detail"></div>
+
+</div>
 
 <script>
 let sheetData = [];
-let chart;
+let currentIndex = -1;
 
 const API_URL = "https://script.google.com/macros/s/AKfycbwq_1e2XQMzJxB7aldgptnX1_gRfVD2RYFhCxVOmInuF4uFdEwWf5h6lay7CgM6dTzu/exec";
 
+// Fetch data
 fetch(API_URL)
 .then(res => res.json())
 .then(data => sheetData = data);
 
-// format
-const formatNumber = n => Number(n||0).toLocaleString();
+// Elements
+const searchBox = document.getElementById("searchBox");
+const results = document.getElementById("results");
+const detail = document.getElementById("detail");
 
-// dynamic month detect
-function getMonths(item){
-    return Object.keys(item)
-        .filter(k => k.includes("Count"))
-        .map(k => k.replace(" Count",""));
+// Highlight function
+function highlight(text, keyword){
+    if(!keyword) return text;
+    let regex = new RegExp(`(${keyword})`, "gi");
+    return text.replace(regex, "<mark>$1</mark>");
 }
 
-// search
-const searchBox = document.getElementById("searchBox");
-const suggestionBox = document.getElementById("suggestionBox");
+// Show detail
+function showDetail(item){
+    detail.style.display = "block";
 
-searchBox.addEventListener("keyup", function(){
+    detail.innerHTML = `
+        <h2>${item["Merchant Name"]}</h2>
+        <p><span class="label">HQ ID:</span> ${item["HQ ID"]}</p>
+        <p><span class="label">Setup Date:</span> ${item["Setup By Date"] || "-"}</p>
+        <hr>
+        <p><b>January:</b> ${item["Jan Count"] || 0} | ${Number(item["Jan Volume"]||0).toLocaleString()}</p>
+        <p><b>February:</b> ${item["Feb Count"] || 0} | ${Number(item["Feb Volume"]||0).toLocaleString()}</p>
+        <p><b>March:</b> ${item["March Count"] || 0} | ${Number(item["March Volume"]||0).toLocaleString()}</p>
+        <p><b>April:</b> ${item["April Count"] || 0} | ${Number(item["April Volume"]||0).toLocaleString()}</p>
+    `;
+}
 
-    let keyword = this.value.toLowerCase();
-    suggestionBox.innerHTML = "";
+// Search
+searchBox.addEventListener("input", function(){
+
+    let keyword = this.value.toLowerCase().trim();
+    results.innerHTML = "";
+    detail.style.display = "none";
+    currentIndex = -1;
+
+    if(!keyword) return;
 
     let filtered = sheetData.filter(item =>
         (item["HQ ID"]+"").toLowerCase().includes(keyword) ||
         (item["Merchant Name"]+"").toLowerCase().includes(keyword)
     );
 
-    filtered.slice(0,10).forEach(item=>{
+    filtered.slice(0,20).forEach((item, index)=>{
         let div = document.createElement("div");
-        div.className = "suggestion";
-        div.innerText = item["Merchant Name"];
+        div.className = "item";
+
+        div.innerHTML = `
+            ${highlight(item["Merchant Name"], keyword)}<br>
+            <small>HQ ID: ${highlight(item["HQ ID"]+"", keyword)}</small>
+        `;
 
         div.onclick = ()=>{
-            showResult(item);
-            suggestionBox.innerHTML="";
+            showDetail(item);
+            results.innerHTML = "";
         };
 
-        suggestionBox.appendChild(div);
+        results.appendChild(div);
     });
+
 });
 
-// show result
-function showResult(item){
+// Keyboard control
+searchBox.addEventListener("keydown", function(e){
+    let items = document.querySelectorAll(".item");
 
-let months = getMonths(item);
+    if(e.key === "ArrowDown"){
+        currentIndex++;
+    }
+    else if(e.key === "ArrowUp"){
+        currentIndex--;
+    }
+    else if(e.key === "Enter"){
+        if(items[currentIndex]){
+            items[currentIndex].click();
+        }
+    }
 
-let totalCount = 0;
-let totalVol = 0;
+    items.forEach(i => i.classList.remove("active"));
 
-let tableRows = "";
-let volumes = [];
-
-months.forEach(m=>{
-    let c = Number(item[m+" Count"]||0);
-    let v = Number(item[m+" Volume"]||0);
-
-    totalCount += c;
-    totalVol += v;
-    volumes.push(v);
-
-    tableRows += `
-    <tr>
-        <td>${m}</td>
-        <td>${formatNumber(c)}</td>
-        <td>${formatNumber(v)}</td>
-    </tr>`;
-});
-
-// portal badge
-let status = (item["Portal Status"] || "").toLowerCase();
-let badgeClass = status === "active" ? "active" : "inactive";
-
-// MDR %
-let raw = item["MDR Offus"] || 0;
-
-let mdr = 0;
-
-if(typeof raw === "string" && raw.includes("%")){
-    // already percent format (e.g. "0.30%")
-    mdr = parseFloat(raw.replace("%","")).toFixed(2);
-} else {
-    // decimal format (e.g. 0.003)
-    let num = parseFloat(raw);
-    mdr = !isNaN(num) ? (num * 100).toFixed(2) : "0.00";
-}
-
-document.getElementById("result").innerHTML = `
-<div class="card">
-<h2>${item["Merchant Name"]}</h2>
-<p>HQ ID: ${item["HQ ID"]}</p>
-
-<p>
-Portal Status:
-<span class="badge ${badgeClass}">${item["Portal Status"]||"-"}</span>
-</p>
-
-<p>MDR Offus: ${mdr}%</p>
-<div class="progress">
-<div class="progress-bar" style="width:${mdr}%"></div>
-</div>
-
-<div class="kpi-container">
-<div class="kpi">
-<h3>${formatNumber(totalCount)}</h3>
-<p>Total Count</p>
-</div>
-<div class="kpi">
-<h3>${formatNumber(totalVol)}</h3>
-<p>Total Volume</p>
-</div>
-</div>
-
-<table>
-<tr><th>Month</th><th>Count</th><th>Volume</th></tr>
-${tableRows}
-</table>
-</div>`;
-
-// chart
-let ctx = document.getElementById("chart").getContext("2d");
-
-if(chart) chart.destroy();
-
-chart = new Chart(ctx,{
-    type:'bar',
-    data:{
-        labels: months,
-        datasets:[{
-            label:"Volume",
-            data: volumes
-        }]
+    if(items[currentIndex]){
+        items[currentIndex].classList.add("active");
     }
 });
-}
 </script>
 
 </body>
